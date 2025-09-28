@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Neon Renk Avı Oyunu</title>
+<style>
+:root{
+    --bg:#0b0f26; --panel:#141a3f; --panel2:#192159; --ink:#eef0ff; --muted:#a9add6;
+    --accent:#6c5dd3; --gold:#ffde59; --good:#2ecc71; --danger:#e74c3c;
+}
+*{box-sizing:border-box;user-select:none}
+html,body{
+    height:100%;margin:0;background:var(--bg);color:var(--ink);
+    font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
+    overflow:hidden;
+}
+
+#game-container{
+    position:relative;
+    width: 100vw;
+    height: 100vh;
+    background:radial-gradient(circle,var(--panel),var(--bg));
+    border: none;
+    border-radius: 0;
+    box-shadow: inset 0 0 25px rgba(0,0,0,.6);
+    overflow:hidden;
+    display:flex;flex-direction:column;
+}
+
+/* --- YENİ UI BAR YERLEŞİMİ --- */
+.ui-bar{
+    padding:10px 15px;
+    background:rgba(0,0,0,.3);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-shrink:0;
+    border-bottom:2px solid rgba(108,93,211,.3);
+    gap: 15px;
+}
+.ui-left-group, .ui-right-group {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+.ui-right-group {
+    gap: 10px;
+}
+#target-color-container{
+    font-size:clamp(1.2rem, 3vw, 1.6rem);
+    font-weight:800;
+    text-shadow:0 0 10px var(--accent);
+}
+.stats {
+    display: flex;
+    gap: 20px;
+    font-size:clamp(1rem, 2.5vw, 1.2rem);
+    font-weight:600;
+}
+.btn{
+    background:linear-gradient(180deg,var(--accent),#4e42c2);
+    border:1px solid rgba(255,255,255,.15); color:#fff; padding:8px 12px;
+    border-radius:10px; cursor:pointer; font-weight:700; font-size:.9rem;
+    box-shadow:0 5px 15px rgba(0,0,0,.3); transition:transform .1s, box-shadow .2s;
+    display:flex; align-items:center; gap:8px;
+}
+.btn:hover{box-shadow:0 8px 20px rgba(0,0,0,.4); transform:translateY(-1px)}
+.btn:active{transform:translateY(1px)}
+.btn.ghost{background:linear-gradient(180deg,#2b2f55,#1d2147)}
+.btn.good{background:linear-gradient(180deg,var(--good),#177845)}
+.icon img{width:20px;height:20px;display:block}
+
+.info-panel {
+    text-align: center;
+    padding: 6px 6px;
+    background: rgba(0,0,0,0.2);
+    color: var(--gold);
+    font-weight: 700;
+    font-size: 1.2rem;
+    border-radius: 0 0 12px 12px;
+    box-shadow: 0 5px 10px rgba(0,0,0,.2);
+    margin: 0 auto 10px auto;
+    width: max-content;
+    flex-shrink: 0;
+    text-shadow: 0 0 5px rgba(255,222,89,.5);
+}
+
+#circle-grid-container {
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    padding: 10px;
+}
+
+/* --- KRİTİK DEĞİŞİKLİK: DAİRELERİN GÖRÜNÜRLÜĞÜ İÇİN --- */
+#circle-grid{
+    display:grid;
+    grid-template-columns:repeat(8, 1fr); /* 4 Sütunlu yapıya geçildi */
+    gap: clamp(10px, 1.5vw, 15px);
+    width: 80%;
+    height: 80%;
+    max-width: 100%;
+    max-height: 100%;
+    aspect-ratio: 4 / 5; /* 4x5'lik grid için en-boy oranını koru */
+    margin: auto;
+}
+.color-circle{
+    width:100%;
+    aspect-ratio: 1 / 1;
+    border-radius:50%; cursor:pointer;
+    transition:transform .1s ease, box-shadow .2s ease;
+    box-shadow:0 5px 15px rgba(0,0,0,.3), inset 0 0 10px rgba(255,255,255,.1);
+    border:3px solid transparent;
+}
+.color-circle:hover{
+    transform:scale(1.05);
+    box-shadow:0 8px 25px rgba(0,0,0,.4), inset 0 0 15px rgba(255,255,255,.2), 0 0 15px var(--ink);
+    border-color:rgba(255,255,255,0.8);
+}
+.color-circle:active{transform:scale(.98)}
+
+.modal{ position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(11,15,38,.7); backdrop-filter:blur(8px); z-index:1000}
+.modal.active{display:flex}
+.modal-content{
+    position: relative;
+    background:linear-gradient(160deg,var(--panel),var(--panel2));
+    border:1px solid var(--accent); padding:30px 40px; border-radius:16px;
+    max-width:520px; width:90%; text-align:center; box-shadow:0 10px 50px rgba(0,0,0,.5);
+}
+.modal-content h2{margin:0 0 10px;font-size:2rem;color:var(--gold)}
+.modal-content p{color:var(--muted);font-size:1.05rem; line-height: 1.6;}
+/* Kapatma ("X") butonunun stili */
+.close-modal-btn {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 2rem;
+    font-weight: bold;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+.close-modal-btn:hover {
+    color: var(--ink);
+    transform: scale(1.1);
+}
+.pass-box{
+    display:flex; gap:12px; align-items:center; justify-content:center; margin:20px 0;
+    background:rgba(0,0,0,.3); padding:10px 12px; border-radius:12px;
+}
+.pass{font-size:1.15rem;font-weight:900;color:var(--gold);letter-spacing:2px;text-shadow:0 0 8px var(--gold)}
+</style>
+</head>
+<body>
+
+<div id="game-container">
+    <div class="ui-bar">
+        <div class="ui-left-group">
+            <div id="target-color-container">Renk: <span id="target-color-text"></span></div>
+            <div class="stats">
+                <div id="score-display">Puan: 0</div>
+                <div id="timer-display">Süre: 45</div>
+            </div>
+        </div>
+        <div class="info-panel">
+        Doğru: <span style="color:var(--good)">+10</span> · Yanlış: <span style="color:var(--danger)">-5</span> · Hedef: <span style="color:var(--gold)">300 Puan</span>
+        </div>
+        <div class="ui-right-group">
+            <button class="btn good" id="start-btn">BAŞLA</button>
+            <button id="ui-fullscreen-btn" class="btn ghost" title="Tam Ekran Modu">
+                <span class="icon">
+                    <img id="icon-expand" src="https://raw.githubusercontent.com/erhan3861/Maze-oyunu/main/maximize.png" alt="Tam Ekran Yap"/>
+                    <img id="icon-compress" src="https://raw.githubusercontent.com/erhan3861/Maze-oyunu/main/minimize.png" alt="Tam Ekrandan Çık" style="display:none;"/>
+                </span>
+            </button>
+        </div>
+    </div>
+
+    <div id="circle-grid-container">
+        <div id="circle-grid"></div>
+    </div>
+</div>
+
+<div id="start-modal" class="modal active">
+    <div class="modal-content">
+        <h2>Neon Renk Avı</h2>
+        <p>Hedef rengi daireler arasında bul ve olabildiğince hızlı tıkla.<br>Hız ve dikkat en yüksek puanı getirecek!</p>
+        <button id="start-btn-2" class="btn good" style="margin-top: 15px; padding: 12px 20px; font-size: 1rem;">OYUNA BAŞLA</button>
+    </div>
+</div>
+
+<div id="end-modal" class="modal">
+    <div class="modal-content">
+        <button id="close-end-modal-btn" class="close-modal-btn" title="Kapat">&times;</button>
+        <h2 id="end-title">Süre Doldu!</h2>
+        <p id="end-score">Toplam Puanın: 0</p>
+        <div id="password-section" style="display:none;">
+            <p>Bölüm şifreniz:</p>
+            <div class="pass-box">
+                <span id="password" class="pass">—</span>
+                <button id="copy-btn" class="btn">Kopyala</button>
+            </div>
+        </div>
+        <p style="color:var(--muted); font-size: 0.9rem; margin-top: 15px;">Yeni oyun için üstteki <b>BAŞLA</b> butonunu kullan.</p>
+    </div>
+</div>
+
+<script>
+'use strict';
+
+const gameContainer = document.getElementById('game-container');
+const scoreDisplay = document.getElementById('score-display');
+const timerDisplay = document.getElementById('timer-display');
+const circleGrid = document.getElementById('circle-grid');
+const targetColorText = document.getElementById('target-color-text');
+const startModal = document.getElementById('start-modal');
+const startBtn = document.getElementById('start-btn');
+const startBtn2 = document.getElementById('start-btn-2');
+const endModal = document.getElementById('end-modal');
+const endTitle = document.getElementById('end-title');
+const endScore = document.getElementById('end-score');
+const passwordSection = document.getElementById('password-section');
+const passwordDisplay = document.getElementById('password');
+const copyBtn = document.getElementById('copy-btn');
+const uiFullscreenBtn = document.getElementById('ui-fullscreen-btn');
+const iconExpand = document.getElementById('icon-expand');
+const iconCompress = document.getElementById('icon-compress');
+
+const GAME_DURATION = 45;
+const TARGET_SCORE = 300;
+const PASSWORD_KEY = 'COLOR-MASTER-2025-CODE';
+const GRID_SIZE = 24; // 4x5'lik grid
+const COLORS = [
+    { name:'KIRMIZI', hex:'#e74c3c' }, { name:'YEŞİL', hex:'#2ecc71' },
+    { name:'MAVİ', hex:'#3498db' }, { name:'SARI', hex:'#f1c40f' },
+    { name:'TURUNCU', hex:'#e67e22' }, { name:'MOR', hex:'#9b59b6' },
+    { name:'PEMBE', hex:'#ff79c6' }, { name:'TURKUAZ', hex:'#1abc9c' },
+];
+
+let score = 0;
+let timeLeft = GAME_DURATION;
+let gameTimerId = null;
+let isGameRunning = false;
+let currentTargetColor = null;
+
+const randInt = (a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+function shuffle(array){ for(let i=array.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1)); [array[i],array[j]]=[array[j],array[i]];} return array; }
+
+function startGame(){
+    score = 0;
+    timeLeft = GAME_DURATION;
+    isGameRunning = true;
+    scoreDisplay.textContent = `Puan: ${score}`;
+    timerDisplay.textContent = `Süre: ${timeLeft}`;
+    startModal.classList.remove('active');
+    endModal.classList.remove('active');
+    if (gameTimerId) clearInterval(gameTimerId);
+    gameTimerId = setInterval(updateTimer, 1000);
+    nextRound();
+}
+
+function endGame(isWin = false){
+    isGameRunning = false;
+    if (gameTimerId) clearInterval(gameTimerId);
+    circleGrid.innerHTML = '';
+    endScore.textContent = `Toplam Puanın: ${score}`;
+    passwordSection.style.display = isWin ? 'block' : 'none';
+    endTitle.textContent = isWin ? '🎉 Tebrikler, Kazandın!' : 'Süre Doldu!';
+    if(isWin) {
+        passwordDisplay.textContent = PASSWORD_KEY;
+    }
+    endModal.classList.add('active');
+}
+
+function updateTimer(){
+    timeLeft--;
+    timerDisplay.textContent = `Süre: ${timeLeft}`;
+    if (timeLeft <= 0) {
+        endGame(score >= TARGET_SCORE);
+    }
+}
+
+function nextRound(){
+    circleGrid.innerHTML = '';
+    currentTargetColor = COLORS[randInt(0, COLORS.length-1)];
+    targetColorText.textContent = currentTargetColor.name;
+    targetColorText.style.color = currentTargetColor.hex;
+    const targetCount = randInt(2, 5);
+    const cells = new Array(GRID_SIZE).fill(null);
+    for (let i=0;i<targetCount;i++){
+        let idx;
+        do { idx = randInt(0, GRID_SIZE-1); } while (cells[idx] !== null);
+        cells[idx] = currentTargetColor;
+    }
+    for (let i=0;i<GRID_SIZE;i++){
+        if (!cells[i]){
+            cells[i] = COLORS[randInt(0, COLORS.length-1)];
+        }
+    }
+    shuffle(cells);
+    for (const color of cells){
+        const circle = document.createElement('div');
+        circle.className = 'color-circle';
+        circle.style.backgroundColor = color.hex;
+        circle.dataset.colorName = color.name;
+        circle.addEventListener('click', handleCircleClick, { passive:true });
+        circleGrid.appendChild(circle);
+    }
+}
+
+function handleCircleClick(e){
+    if (!isGameRunning) return;
+    const clicked = e.currentTarget.dataset.colorName;
+    if (clicked === currentTargetColor.name){
+        score += 10;
+        nextRound();
+    } else {
+        score = Math.max(0, score - 5);
+        gameContainer.style.transition = 'transform 0.1s';
+        gameContainer.style.transform = 'translateX(5px)';
+        setTimeout(()=>gameContainer.style.transform='translateX(-5px)',100);
+        setTimeout(()=>gameContainer.style.transform='translateX(0)',200);
+    }
+    scoreDisplay.textContent = `Puan: ${score}`;
+    if (score >= TARGET_SCORE) {
+        endGame(true);
+    }
+}
+
+// Tam Ekran Fonksiyonu
+function toggleFullscreen(){
+    if (!document.fullscreenElement){
+        document.documentElement.requestFullscreen().catch(err=>alert(`Tam ekran başlatılamadı: ${err.message}`));
+    } else if (document.exitFullscreen){
+        document.exitFullscreen();
+    }
+}
+
+// Tam Ekran İkonunu Güncelleme
+function updateFullscreenIcon(){
+    const on = !!document.fullscreenElement;
+    iconExpand.style.display = on ? 'none':'block';
+    iconCompress.style.display = on ? 'block':'none';
+}
+
+uiFullscreenBtn.addEventListener('click', toggleFullscreen);
+document.addEventListener('fullscreenchange', updateFullscreenIcon);
+
+copyBtn.addEventListener('click', async ()=>{
+    const t = passwordDisplay.textContent.trim();
+    if (!t || t==='—') return;
+    try{ await navigator.clipboard.writeText(t); copyBtn.textContent='✅ Kopyalandı'; }
+    catch{ copyBtn.textContent='❌ Hata'; }
+    setTimeout(()=> copyBtn.textContent='Kopyala', 1500);
+});
+
+startBtn.addEventListener('click', startGame);
+startBtn2.addEventListener('click', startGame);
+document.addEventListener('visibilitychange', ()=>{ if (document.hidden && isGameRunning){ isGameRunning=false; if (gameTimerId) clearInterval(gameTimerId); }});
+// --- Gerekli Elementler ---
+// Bu satırların script'inizin en başında zaten olması gerekir
+const closeEndModalBtn = document.getElementById('close-end-modal-btn');
+
+
+// --- Kapatma Fonksiyonları ---
+
+// 1. "X" Butonuna tıklayınca pencereyi kapatır
+closeEndModalBtn.addEventListener('click', () => {
+    endModal.classList.remove('active');
+});
+
+
+
+</script>
+</body>
+</html>
