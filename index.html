@@ -275,6 +275,7 @@ function endGame(isWin = false){
     endTitle.textContent = isWin ? '🎉 Tebrikler, Kazandın!' : 'Süre Doldu!';
     if(isWin) {
         passwordDisplay.textContent = PASSWORD_KEY;
+        window.parent.postMessage({ type: "ctf:flag-revealed" }, "*");
     }
     endModal.classList.add('active');
 }
